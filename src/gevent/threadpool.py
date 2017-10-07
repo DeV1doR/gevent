@@ -157,11 +157,7 @@ class ThreadPool(GroupMappingMixin):
 
         :return: A :class:`gevent.event.AsyncResult`.
         """
-        while True:
-            semaphore = self._semaphore
-            semaphore.acquire()
-            if semaphore is self._semaphore:
-                break
+        self._semaphore.acquire()
 
         thread_result = None
         try:
@@ -171,13 +167,13 @@ class ThreadPool(GroupMappingMixin):
             # we get LoopExit (why?). Previously it was done with a rawlink on the
             # AsyncResult and the comment that it is "competing for order with get(); this is not
             # good, just make ThreadResult release the semaphore before doing anything else"
-            thread_result = ThreadResult(result, hub=self.hub, call_when_ready=semaphore.release)
+            thread_result = ThreadResult(result, hub=self.hub, call_when_ready=self._semaphore.release)
             task_queue.put((func, args, kwargs, thread_result))
             self.adjust()
-        except:
+        except:  # pylint:disable=bare-except
             if thread_result is not None:
                 thread_result.destroy()
-            semaphore.release()
+            self._semaphore.release()
             raise
         return result
 
